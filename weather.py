@@ -1,9 +1,11 @@
 import requests
 
+import settings
+
 def get_weather(city_name, date):
     weather_url = "http://api.worldweatheronline.com/premium/v1/weather.ashx"
     params = {
-        'key': '2dafdb48aa5340bfbcb150110190512',
+        'key': settings.WEATHER_API_KEY,
         'q': city_name,
         'date': date,
         'format': 'json',

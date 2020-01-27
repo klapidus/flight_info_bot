@@ -20,16 +20,19 @@ class LufthansaAPI:
         self.client_secret = client_secret
 
     def _flight_by_info(self, entry):
-        departure_time = entry['Flight']['Departure']['ScheduledTimeLocal']['DateTime'][-5:]
-        departure_time = datetime.time(int(departure_time[:2]), int(departure_time[3:]))
-        arrival_time = entry['Flight']['Arrival']['ScheduledTimeLocal']['DateTime'][-5:]
-        arrival_time = datetime.time(int(arrival_time[:2]), int(arrival_time[3:]))
+        # print(entry['Flight'])
+        departure_airport = entry['Flight']['Departure']['AirportCode']
+        arrival_airport = entry['Flight']['Arrival']['AirportCode']
+        departure_datetime = entry['Flight']['Departure']['ScheduledTimeLocal']['DateTime']
+        departure_datetime = datetime.datetime.strptime(departure_datetime, '%Y-%m-%dT%H:%M')
+        arrival_datetime = entry['Flight']['Arrival']['ScheduledTimeLocal']['DateTime']
+        arrival_datetime = datetime.datetime.strptime(arrival_datetime, '%Y-%m-%dT%H:%M')
         duration = entry['TotalJourney']['Duration'][2:] #output: 12H59M
         duration_h, duration_m = duration.split('H')[0], duration.split('H')[1][:2]
         duration = int(duration_h)*60 + int(duration_m) #flight-time in minutes
         airline_id = entry['Flight']['MarketingCarrier']['AirlineID']
         flight_number = entry['Flight']['MarketingCarrier']['FlightNumber']
-        return Flight(departure_time, arrival_time, duration, airline_id, flight_number)
+        return Flight(departure_airport, arrival_airport, departure_datetime, arrival_datetime, duration, airline_id, flight_number)
 
     def init_token(self):
         my_data = {'client_id': self.client_id,
@@ -43,14 +46,16 @@ class LufthansaAPI:
             return False
 
     def _make_request(self, url):
-        res = requests.get(url, headers=self._LH_API_AUTH)
+        res = requests.get(url, headers=self._LH_API_AUTH, timeout=settings.REQUEST_TIMEOUT)
         if res.status_code == 401:
             self.init_token()
-            return requests.get(url, headers=self._LH_API_AUTH)
+            return requests.get(url, headers=self._LH_API_AUTH, timeout=settings.REQUEST_TIMEOUT)
         return res
 
     def find_connections(self, origin, destination, date_time, direct_flight='true'):
+        date_time = date_time.strftime('%Y-%m-%d')
         schedule_url = f'{self._LH_API_SCHEDULES_URL}/{origin}/{destination}/{date_time}?directFlights={direct_flight}'
+        print(schedule_url)
         try:
             result = self._make_request(schedule_url)
             result.raise_for_status()
@@ -62,7 +67,6 @@ class LufthansaAPI:
                 return [self._flight_by_info(entry) for entry in flight_schedule]
         except (requests.RequestException, ValueError):
             return False
-
 
     def flight_status(self, full_id, date):
         status_url = f'{self._LH_API_FLIGHT_STATUS_URL}/{full_id}/{date}'

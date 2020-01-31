@@ -4,7 +4,7 @@ import time
 
 import datetime
 
-from airport_data import get_cities_nearby, get_airport_codes, CITY_AIRPORTS_DICT
+from airport_data import get_cities_nearby, get_airport_codes, get_distance
 from db import db, insert_flights_to_db, find_flights_from_db, insert_na_flight_to_db, is_na_flight_in_db
 import settings
 from utils import get_weekend_days
@@ -38,21 +38,31 @@ def printout_flights(bot, update, flights):
         fl_dep = flight.departure_datetime.strftime("%H:%M")
         fl_arr = flight.arrival_datetime.strftime("%H:%M")
         fl_dur = flight.duration
-        update.message.reply_text(f'{idx}: Flight {flight.airline_id}{flight.flight_number}, {fl_dep}-{fl_arr}, {fl_dur} minutes',
+        update.message.reply_text(f'{idx}. {flight.airline_id}{flight.flight_number}, {fl_dep}-{fl_arr}, {fl_dur} minutes',
                                   parse_mode='Markdown')
 
 
 def find_flight(bot, update, api):
     in_text = update.message.text
-    origin, destination = in_text.split()[1][:3], in_text.split()[1][4:]
-    dep_date = in_text.split()[2]
-    dep_date = datetime.datetime.strptime(dep_date,'%Y-%m-%d')
+    _, cities, dep_date = in_text.split()
+    start_city, goal_city = cities.split('-')
+    try:
+        dep_date = datetime.datetime.strptime(dep_date, '%d-%m-%Y')
+    except ValueError:
+        update.message.reply_text('The departure date is not valid!')
 
-    flights = find_connections_from_db_or_api(db, api, origin, destination, dep_date)
+    start_airports = get_airport_codes(start_city)
+    goal_airports = get_airport_codes(goal_city)
 
-    if flights:
-        update.message.reply_text(f'{len(flights)} flights found')
-        printout_flights(bot, update, flights)
+    for a1, a2 in product(start_airports, goal_airports):
+        flights = find_connections_from_db_or_api(db, api, a1, a2, dep_date)
+        if flights:
+            update.message.reply_text(f'{len(flights)} flights found from {start_city} ({a1}) to {goal_city} ({a2}):')
+            printout_flights(bot, update, flights)
+
+    if not flights:
+        update.message.reply_text('No connections found!')
+
 
 
 def weekend_trip(bot, update, api):
@@ -76,7 +86,7 @@ def weekend_trip(bot, update, api):
         update.message.reply_text('No airport found in the chosen city! Choose another starting city!')
         return False
 
-    #find cities (from a dict of cities with airports) 'nearby', <3-4 hours flights
+    #find cities (from a dict of cities with airports) within max_dist
     cities_nearby = get_cities_nearby(start_city, max_dist)
     print(cities_nearby)
     if cities_nearby:
@@ -111,15 +121,17 @@ def weekend_trip(bot, update, api):
                 continue
             flights_back = find_connections_from_db_or_api(db, api, airport2, airport1, sunday)
             if flights_back:
-                update.message.reply_text(f'*Weekend trip options from {start_city} to {city}:*', parse_mode='Markdown')
+                dist = int(get_distance(start_city, city))
+                update.message.reply_text(f'*Weekend trip options from {start_city} to {city} (~{dist} km):*',
+                                          parse_mode='Markdown')
                 trip_found = True
 
-                update.message.reply_text(f'{len(flights_forth)} flights found from {start_city} to {city} next Friday')
+                update.message.reply_text(f'{len(flights_forth)} flights found from {start_city} ({airport1}) to {city} ({airport2}) next Friday')
                 printout_flights(bot, update, flights_forth) #todo if too many, return latest flights
 
-                update.message.reply_text(f'{len(flights_back)} flights found from {city} to {start_city} next Sunday')
+                update.message.reply_text(f'{len(flights_back)} flights found from {city} ({airport2}) to {start_city} ({airport1}) next Sunday')
                 printout_flights(bot, update, flights_back)
 
     if not trip_found:
         update.message.reply_text('No weekend trip found! Increase the search distance or change the start city!')
-    update.message.reply_text('Search is completed.')
+    update.message.reply_text('Search for a weekend trip is completed.')

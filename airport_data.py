@@ -1,3 +1,5 @@
+from itertools import product
+
 import pandas as pd
 import geopy.distance
 
@@ -23,7 +25,7 @@ def get_cities_nearby(city, max_dist):
     return cities_nearby
 
 
-def get_distance(city1, city2):
+def get_distance(city1: str, city2: str) -> float:
     coords_1 = get_airport_coords_by_city(airport_df, city1)
     coords_2 = get_airport_coords_by_city(airport_df, city2)
     return geopy.distance.geodesic(coords_1, coords_2).km

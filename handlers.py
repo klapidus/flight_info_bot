@@ -37,8 +37,8 @@ def printout_flights(bot, update, flights):
     for idx, flight in enumerate(flights, 1):
         fl_dep = flight.departure_datetime.strftime("%H:%M")
         fl_arr = flight.arrival_datetime.strftime("%H:%M")
-        fl_dur = flight.duration
-        update.message.reply_text(f'{idx}. {flight.airline_id}{flight.flight_number}, {fl_dep}-{fl_arr}, {fl_dur} minutes',
+        fl_dur_h, fl_dur_m = divmod(flight.duration, 60)
+        update.message.reply_text(f'{idx}. {flight.airline_id}{flight.flight_number}, {fl_dep}-{fl_arr}, {fl_dur_h}h {fl_dur_m}min',
                                   parse_mode='Markdown')
 
 
@@ -54,14 +54,18 @@ def find_flight(bot, update, api):
     start_airports = get_airport_codes(start_city)
     goal_airports = get_airport_codes(goal_city)
 
+    flight_found = False
     for a1, a2 in product(start_airports, goal_airports):
-        flights = find_connections_from_db_or_api(db, api, a1, a2, dep_date)
+        flights = find_connections_from_db_or_api(db, api, a1, a2, dep_date.date())
         if flights:
+            flight_found = True
             update.message.reply_text(f'{len(flights)} flights found from {start_city} ({a1}) to {goal_city} ({a2}):')
             printout_flights(bot, update, flights)
 
-    if not flights:
+    if not flight_found:
         update.message.reply_text('No connections found!')
+    else:
+        update.message.reply_text('Search completed.')
 
 
 
@@ -134,4 +138,11 @@ def weekend_trip(bot, update, api):
 
     if not trip_found:
         update.message.reply_text('No weekend trip found! Increase the search distance or change the start city!')
-    update.message.reply_text('Search for a weekend trip is completed.')
+    else:
+        update.message.reply_text('Search for a weekend trip is completed.')
+
+
+def start(bot, update):
+        update.message.reply_text(
+            'Find a flight: /find_flight Moscow-London DD-MM-YYY\n'
+            'Find a weekend trip: /weekend_trip [CITY] [DISTANCE]}')

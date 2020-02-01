@@ -1,7 +1,6 @@
-from itertools import product
-
 import pandas as pd
 import geopy.distance
+
 
 def get_airport_coords_by_city(airport_df, city):
     coords = airport_df[(airport_df['municipality'] == city) & (airport_df['type'] == 'large_airport')]['coordinates']

@@ -6,12 +6,12 @@ import utils
 
 #add a non-available (from API) flight to a separate collection
 def insert_na_flight_to_db(db, departure, destination, dep_date):
-    db.naflights.insert_one({'departure_airport': departure,
+    db.naflights2.insert_one({'departure_airport': departure,
                              'arrival_airport': destination,
                              'departure_datetime': dep_date.strftime('%Y-%m-%d')})
 
 def is_na_flight_in_db(db, departure, destination, dep_date):
-    flight = db.naflights.find_one({'departure_airport': departure,
+    flight = db.naflights2.find_one({'departure_airport': departure,
                                     'arrival_airport': destination,
                                     'departure_datetime': dep_date.strftime('%Y-%m-%d')}
                                    )
@@ -21,12 +21,12 @@ def is_na_flight_in_db(db, departure, destination, dep_date):
 
 
 def insert_flights_to_db(db, flights):
-    db.klb.insert_many([flight.as_bson() for flight in flights])
+    db.flights2.insert_many([flight.as_bson() for flight in flights])
 
 
 def find_flights_from_db(db, departure, destination, dep_date):
 
-    entries = db.klb.find({'departure_airport': departure, 'arrival_airport': destination}, {'_id': False})
+    entries = db.flights2.find({'departure_airport': departure, 'arrival_airport': destination}, {'_id': False})
     #todo improve query by date
     #datetime object is saved in the db
     #need to project on date only
